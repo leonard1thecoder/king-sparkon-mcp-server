@@ -1,0 +1,28 @@
+{
+  "name": "king-sparkon-mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Role-based MCP gateway over the King Sparkon Spring Boot backend. AI/business-intent tools; backend remains the authority.",
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "node --loader ts-node/esm src/local.ts",
+    "start": "node dist/api/mcp.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
