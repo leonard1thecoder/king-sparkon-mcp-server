@@ -7,7 +7,7 @@
  */
 
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { createServer, SERVER_NAME, SERVER_VERSION } from "../src/server.js";
+import { createServer, SERVER_NAME, SERVER_VERSION } from "../src/mcpServer.js";
 import { authFromHeaders, runWithRequestAuth } from "../src/auth/requestStore.js";
 
 interface VercelRequest {
