@@ -4,11 +4,9 @@
   "private": true,
   "description": "Role-based MCP gateway over the King Sparkon Spring Boot backend. AI/business-intent tools; backend remains the authority.",
   "type": "module",
-  "main": "dist/server.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "node --loader ts-node/esm src/local.ts",
-    "start": "node dist/api/mcp.js",
+    "dev": "vercel dev",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
