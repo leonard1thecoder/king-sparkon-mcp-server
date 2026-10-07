@@ -7,6 +7,9 @@ import { affiliateTools } from "./affiliate.js";
 import { artistTools } from "./artist.js";
 import { customerTools } from "./customer.js";
 import { kscTools } from "./ksc.js";
+import { notificationTools } from "./notifications.js";
+import { customerTools } from "./customer.js";
+import { kscTools } from "./ksc.js";
 import { ownerTools } from "./owner.js";
 import { withdrawTools } from "./withdraw.js";
 import { workerTools } from "./worker.js";
@@ -19,6 +22,7 @@ export const toolDomains: Array<{ domain: string; tools: KingSparkonTool[] }> = 
   { domain: "owner", tools: ownerTools },
   { domain: "worker", tools: workerTools },
   { domain: "affiliate", tools: affiliateTools },
+  { domain: "notifications", tools: notificationTools },
   { domain: "withdraw", tools: withdrawTools },
   { domain: "admin", tools: adminTools },
 ];

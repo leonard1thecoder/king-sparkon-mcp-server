@@ -53,6 +53,15 @@ Normalized case-insensitively in `src/auth/identity.ts`. Permissions per role in
 - Resources (`king-sparkon://me`, `me/permissions`, `me/consent`, `events/{eventId}`, `wallet`) re-run the pipeline; `resources/list` advertises names only. The events template enumerates the public catalogue (cap 50); reads by id enforce `events.read`.
 - Prompts (`event_management`, `artist_booking`, `rider_selection`, `payment_review`) are static workflow guides; they cannot bypass authorization.
 
+## Backend-versioned capabilities
+
+Four MCP capabilities need backend migrations `V20261007`/`V20261008`
+(user notifications, artist directory, worker shifts, artist withdrawal
+eligibility). Until the backend is redeployed with them, the corresponding
+tools fail honestly with `BACKEND_ERROR` (timeouts/404s map there) instead
+of faking — see `docs/GAPS.md`. `tools/list`, `resources/list` and
+`prompts/list` always reflect the deployed MCP build, not backend state.
+
 ## Vercel / statelessness
 
 Server mode (`src/server.ts` default export, catch-all): fresh `McpServer` + transport per request, closed afterwards. No filesystem, no sessions, no in-memory durable state, no background work. `api/mcp.ts` delegates to the same handler (functions-mode compatible).

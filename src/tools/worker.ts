@@ -139,14 +139,19 @@ const getMyAssignments = defineTool({
 
 const getMySchedule = defineTool({
   name: "get_my_schedule",
-  description: "Get my work schedule. Limited: the backend has no shift schedule — returns ticket-entry duty and open tasks instead.",
+  description: "Get my scheduled work shifts (plus open counter duties and gate duty). Shifts are owner-planned per business.",
   security: { classification: "READ", roles: [...WORKER], scopes: ["schedule.read"], confirmation: "NONE", financial: false, mandate: "NONE" },
-  schema: {},
-  handler: async (ctx) => {
-    const tasks = await collectAssignments(ctx);
+  schema: { from: z.string().optional().describe("ISO date, defaults to today."), to: z.string().optional() },
+  handler: async (ctx, rawArgs) => {
+    const args = rawArgs as { from?: string; to?: string };
+    const [shifts, tasks] = await Promise.all([
+      backendGet(ctx, API.workerShiftsMe, { from: args.from, to: args.to }).catch(() => null),
+      collectAssignments(ctx),
+    ]);
     auditTool(ctx, getMySchedule, "ok");
     return {
-      note: "No shift schedule exists in the backend; showing open counter duties instead.",
+      shifts: shifts ?? [],
+      scheduleUnavailable: shifts === null,
       ticketEntryDuty: "Gate QR verification available at the Ticket Entry scanner.",
       openTasks: tasks,
     };

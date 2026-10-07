@@ -7,6 +7,7 @@ import { z } from "zod";
 import { backendGet } from "../backend/client.js";
 import { API } from "../backend/endpoints.js";
 import { McpError } from "../auth/errors.js";
+import type { McpRequestContext } from "../auth/pipeline.js";
 import { auditTool, authorizeTool, defineTool, type KingSparkonTool } from "./types.js";
 import { kscPurchaseFlow } from "./ksc.js";
 
@@ -157,17 +158,57 @@ const getProduct = defineTool({
   },
 });
 
+export interface ArtistDirectoryQuery {
+  query?: string;
+  type?: "DJ" | "MUSICIAN" | "MCEE";
+  page?: number;
+  size?: number;
+}
+
+export interface ArtistDirectoryPage {
+  items: unknown[];
+  page: number;
+  pageSize: number;
+  total?: number;
+  hasNext: boolean;
+}
+
+/** Shared artist-directory read: only artist-chosen public profiles, normalized paging (§40). */
+export async function searchArtistDirectory(
+  ctx: McpRequestContext,
+  args: ArtistDirectoryQuery,
+): Promise<ArtistDirectoryPage> {
+  const data = await backendGet<Record<string, unknown>>(ctx, API.artistsDirectory, {
+    q: args.query,
+    type: args.type,
+    page: args.page ?? 0,
+    size: Math.min(Math.max(args.size ?? 20, 1), 50),
+  });
+  const items = Array.isArray(data) ? data : ((data.content as unknown[]) ?? []);
+  return {
+    items,
+    page: typeof data.number === "number" ? (data.number as number) : (args.page ?? 0),
+    pageSize: typeof data.size === "number" ? (data.size as number) : items.length,
+    total: typeof data.totalElements === "number" ? (data.totalElements as number) : undefined,
+    hasNext: typeof data.last === "boolean" ? !(data.last as boolean) : false,
+  };
+}
+
 const searchArtists = defineTool({
   name: "search_artists",
-  description: "Search artists. Limited: the backend exposes no public artist directory, so name search is unsupported.",
+  description: "Search visible artists by username and type (authenticated directory; only artist-chosen public profiles, no contact details).",
   security: { classification: "READ", roles: [...CUSTOMER_ROLES], scopes: ["artists.read"], confirmation: "NONE", financial: false, mandate: "NONE" },
-  schema: { query: z.string().optional() },
-  handler: async (ctx) => {
-    auditTool(ctx, searchArtists, "error");
-    throw new McpError(
-      "UNSUPPORTED_OPERATION",
-      "Artist name search is not supported by the backend (no public artist directory). Use get_artist with a known artist user id where your role permits.",
-    );
+  schema: {
+    query: z.string().optional(),
+    type: z.enum(["DJ", "MUSICIAN", "MCEE"]).optional(),
+    page: z.number().int().min(0).optional(),
+    size: z.number().int().min(1).max(50).optional(),
+  },
+  handler: async (ctx, rawArgs) => {
+    const args = rawArgs as ArtistDirectoryQuery;
+    const result = await searchArtistDirectory(ctx, args);
+    auditTool(ctx, searchArtists, "ok");
+    return result;
   },
 });
 

@@ -1,7 +1,7 @@
 # King Sparkon MCP — tool inventory (generated)
 
 > Generated from `src/tools/registry.ts`. Do not hand-edit the tables; rerun the generator.
-> Total tools: **103**
+> Total tools: **109**
 
 ## customer (15)
 
@@ -56,7 +56,7 @@
 | `select_rider_products` | WRITE_BUSINESS | ARTIST | `rider.write` | REQUIRED | no |
 | `get_my_product_selections` | READ | ARTIST | `rider.read` | NONE | no |
 
-## owner (34)
+## owner (37)
 
 | Tool | Classification | Roles | Consent scopes | Confirmation | Financial |
 |---|---|---|---|---|---|
@@ -94,6 +94,9 @@
 | `create_product` | WRITE_BUSINESS | OWNER | `products.write` | REQUIRED | no |
 | `update_product` | WRITE_BUSINESS | OWNER | `products.write` | REQUIRED | no |
 | `delete_product` | WRITE_BUSINESS | OWNER | `products.write` | REQUIRED | no |
+| `create_work_shift` | WRITE_BUSINESS | OWNER | `workers.write` | REQUIRED | no |
+| `get_work_shifts` | READ | OWNER | `workers.read` | NONE | no |
+| `cancel_work_shift` | WRITE_BUSINESS | OWNER | `workers.write` | REQUIRED | no |
 
 ## worker (14)
 
@@ -126,8 +129,15 @@
 | `get_my_affiliate_links` | READ | AFFILIATE | `affiliate.read` | NONE | no |
 | `create_affiliate_link` | WRITE | AFFILIATE | `affiliate.write` | REQUIRED | no |
 
-## withdraw (2)
+## notifications (3)
 
+| Tool | Classification | Roles | Consent scopes | Confirmation | Financial |
+|---|---|---|---|---|---|
+| `get_my_notifications` | READ | USER, ARTIST, OWNER, WORKER, AFFILIATE, ADMIN | any active consent | NONE | no |
+| `mark_notification_read` | WRITE | USER, ARTIST, OWNER, WORKER, AFFILIATE, ADMIN | any active consent | NONE | no |
+| `mark_all_notifications_read` | WRITE | USER, ARTIST, OWNER, WORKER, AFFILIATE, ADMIN | any active consent | NONE | no |
+
+## withdraw (2)
 | Tool | Classification | Roles | Consent scopes | Confirmation | Financial |
 |---|---|---|---|---|---|
 | `withdraw` | WRITE_FINANCIAL | ARTIST, OWNER, WORKER, AFFILIATE | `payments.write` | REQUIRED | yes |

@@ -2,6 +2,10 @@
 
 All paths verified against `king-sparkon-tracker-backend` controllers.
 Base: `{BACKEND_URL}/api`. Auth: `Authorization: Bearer <backend OAuth token>`.
+New domain endpoints (notifications, directory, shifts, artist eligibility)
+landed in backend migrations `V20261007`/`V20261008` — they answer once the
+backend is redeployed; until then the MCP tools fail honestly with
+`BACKEND_ERROR` instead of faking.
 
 ## Identity / users
 
@@ -15,9 +19,10 @@ Base: `{BACKEND_URL}/api`. Auth: `Authorization: Bearer <backend OAuth token>`.
 | MCP use | Method + path |
 |---|---|
 | Profile | `GET/PUT /api/artist/profile`, `GET /api/artist/profile/{id}` |
+| Directory (visible profiles only) | `GET /api/artists/directory?q=&type=&page=&size=` |
 | Drafted discovery | `GET /api/artist/events/drafted`, `GET /api/artist/events/{id}` |
 | Bookings | `POST /api/artist/events/{id}/request`, `GET /api/artist/bookings`, `GET /api/artist/booked`, `GET /api/artist/bookings/event/{id}/status`, `GET /api/artist/schedule`, `GET /api/artist/dashboard` |
-| Earnings | `GET /api/artist/earnings/balance`, `GET/POST /api/artist/withdrawals` |
+| Earnings | `GET /api/artist/earnings/balance`, `GET /api/artist/withdrawals/eligibility`, `GET/POST /api/artist/withdrawals` |
 | Mall / tickets | `GET /api/artist/mall/products`, `POST /api/artist/mall/purchases`, `GET /api/artist/mall/my-purchases`, `GET /api/artist/tickets/events`, `POST /api/artist/tickets/purchase`, `GET /api/artist/tickets/my-tickets` |
 | Rider | `GET /api/artist/events/{id}/rider`, `POST /api/artist/events/{id}/rider/redeem` |
 
@@ -39,6 +44,7 @@ Base: `{BACKEND_URL}/api`. Auth: `Authorization: Bearer <backend OAuth token>`.
 
 | MCP use | Method + path |
 |---|---|
+| Shifts | `GET /api/worker/shifts/me?from=&to=`, owner: `POST/GET /api/owner/shifts`, `PATCH /api/owner/shifts/{id}`, `POST /api/owner/shifts/{id}/cancel`, `POST /api/owner/shifts/{id}/complete` |
 | Dashboard/mall/tickets | `GET /api/worker/dashboard`, `GET /api/worker/mall/products`, `POST /api/worker/mall/staff-purchases`, `GET /api/worker/mall/my-purchases`, `GET /api/worker/tickets/events`, `GET /api/worker/tickets/my-tickets` |
 | Counter/orders | `GET /api/transactions/me`, `GET /api/v1/tuck-shop/workers/online-purchases`, `POST /api/v1/tuck-shop/workers/online-purchases/{tx}/products/{product}/barcodes` |
 | Gate | `POST /api/v1/tickets/verify/qr`, `POST /api/v1/tickets/verify/reference` |
@@ -54,6 +60,13 @@ Base: `{BACKEND_URL}/api`. Auth: `Authorization: Bearer <backend OAuth token>`.
 | Tip withdrawals | `GET /api/affiliates/me/tip-withdrawals/eligibility`, `GET/POST /api/affiliates/me/tip-withdrawals` |
 | Commission withdrawals | `GET /api/affiliates/me/withdrawals/eligibility`, `GET/POST /api/affiliates/me/withdrawals` |
 | Referral links | `GET/POST /api/affiliate-links`, `PATCH /api/affiliate-links/{id}`, `GET /api/affiliate-links/random` |
+
+## Notifications
+
+| MCP use | Method + path |
+|---|---|
+| Inbox | `GET /api/notifications/me?unreadOnly=&page=&size=`, `GET /api/notifications/me/unread-count` |
+| Acknowledge | `POST /api/notifications/{id}/read`, `POST /api/notifications/me/read-all` |
 
 ## Customer (any authenticated role unless noted)
 

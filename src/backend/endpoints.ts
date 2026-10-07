@@ -158,4 +158,20 @@ export const API = {
   affiliateLinks: "/api/affiliate-links",
   affiliateLink: (id: number | string) => `/api/affiliate-links/${id}`,
   affiliateLinksRandom: "/api/affiliate-links/random",
+
+  // Artist directory + withdrawal eligibility (backend V20261007+)
+  artistsDirectory: "/api/artists/directory",
+  artistWithdrawalEligibility: "/api/artist/withdrawals/eligibility",
+
+  // Notifications (backend V20261007+)
+  notificationsMe: "/api/notifications/me",
+  notificationsUnreadCount: "/api/notifications/me/unread-count",
+  notificationRead: (id: number | string) => `/api/notifications/${id}/read`,
+  notificationsReadAll: "/api/notifications/me/read-all",
+
+  // Worker shifts (backend V20261008+)
+  workerShiftsMe: "/api/worker/shifts/me",
+  ownerShifts: "/api/owner/shifts",
+  ownerShift: (id: number | string) => `/api/owner/shifts/${id}`,
+  ownerShiftCancel: (id: number | string) => `/api/owner/shifts/${id}/cancel`,
 } as const;

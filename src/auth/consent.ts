@@ -66,6 +66,7 @@ export const ROLE_PERMISSIONS: Record<KingSparkonRole, string[]> = {
     "rider.read",
     "rider.write",
     "workers.read",
+    "workers.write",
     "earnings.read",
     "wallet.read",
     "payments.write",

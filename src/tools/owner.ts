@@ -10,6 +10,7 @@ import { API } from "../backend/endpoints.js";
 import { McpError } from "../auth/errors.js";
 import { assertSameBusiness, fetchBusinessId, requireConfirmation } from "../auth/pipeline.js";
 import { auditTool, defineTool, type KingSparkonTool } from "./types.js";
+import { searchArtistDirectory, type ArtistDirectoryQuery } from "./customer.js";
 
 const confirmFields = {
   confirm: z.boolean().optional(),
@@ -256,12 +257,19 @@ const deleteEventSet = defineTool({
 
 const searchArtistsOwner = defineTool({
   name: "search_artists_owner",
-  description: "Search artists (owner view). Limited: no public directory exists; use get_artist_owner with a known id.",
+  description: "Search visible artists by username and type (owner view; only artist-chosen public profiles).",
   security: { classification: "READ", roles: [...OWNER], scopes: ["artists.read"], confirmation: "NONE", financial: false, mandate: "NONE" },
-  schema: { query: z.string().optional() },
-  handler: async (ctx) => {
-    auditTool(ctx, searchArtistsOwner, "error");
-    throw new McpError("UNSUPPORTED_OPERATION", "Artist name search is not supported by the backend. Use get_artist_owner with a known artist user id.");
+  schema: {
+    query: z.string().optional(),
+    type: z.enum(["DJ", "MUSICIAN", "MCEE"]).optional(),
+    page: z.number().int().min(0).optional(),
+    size: z.number().int().min(1).max(50).optional(),
+  },
+  handler: async (ctx, rawArgs) => {
+    const args = rawArgs as ArtistDirectoryQuery;
+    const result = await searchArtistDirectory(ctx, args);
+    auditTool(ctx, searchArtistsOwner, "ok");
+    return result;
   },
 });
 
@@ -538,6 +546,64 @@ const deleteProduct = defineTool({
   },
 });
 
+const createWorkShift = defineTool({
+  name: "create_work_shift",
+  description:
+    "Schedule a shift for one of my business workers (date plus optional start/end times and duty note). The worker is notified server-side. Requires explicit confirmation.",
+  security: { classification: "WRITE_BUSINESS", roles: [...OWNER], scopes: ["workers.write"], confirmation: "REQUIRED", financial: false, mandate: "NONE" },
+  schema: {
+    workerId: z.number().int().positive(),
+    shiftDate: z.string().describe("ISO-8601 date, e.g. 2026-10-10."),
+    startTime: z.string().optional().describe("ISO-8601 time, e.g. 09:00. Must be before endTime."),
+    endTime: z.string().optional(),
+    note: z.string().max(500).optional(),
+    ...confirmFields,
+  },
+  handler: async (ctx, rawArgs) => {
+    const args = rawArgs as { workerId: number; shiftDate: string; startTime?: string; endTime?: string; note?: string } & ConfirmArgs;
+    const shift = { workerId: args.workerId, shiftDate: args.shiftDate, startTime: args.startTime, endTime: args.endTime, note: args.note };
+    const gate = await confirmedAction(createWorkShift, ctx, "create_work_shift", { workerId: args.workerId, shiftDate: args.shiftDate }, shift, args, "shift");
+    if (gate) return gate;
+    const created = await backendPost(ctx, API.ownerShifts, {
+      workerId: args.workerId,
+      shiftDate: args.shiftDate,
+      startTime: args.startTime,
+      endTime: args.endTime,
+      note: args.note,
+    });
+    auditTool(ctx, createWorkShift, "ok", { resourceType: "shift" });
+    return created;
+  },
+});
+
+const getWorkShifts = defineTool({
+  name: "get_work_shifts",
+  description: "List my business shifts in a date window (defaults to the next 30 days).",
+  security: { classification: "READ", roles: [...OWNER], scopes: ["workers.read"], confirmation: "NONE", financial: false, mandate: "NONE" },
+  schema: { from: z.string().optional(), to: z.string().optional() },
+  handler: async (ctx, rawArgs) => {
+    const args = rawArgs as { from?: string; to?: string };
+    const shifts = await backendGet(ctx, API.ownerShifts, { from: args.from, to: args.to });
+    auditTool(ctx, getWorkShifts, "ok");
+    return shifts;
+  },
+});
+
+const cancelWorkShift = defineTool({
+  name: "cancel_work_shift",
+  description: "Cancel a scheduled shift. The worker is notified server-side. Requires explicit confirmation.",
+  security: { classification: "WRITE_BUSINESS", roles: [...OWNER], scopes: ["workers.write"], confirmation: "REQUIRED", financial: false, mandate: "NONE" },
+  schema: { shiftId: z.number().int().positive(), ...confirmFields },
+  handler: async (ctx, rawArgs) => {
+    const args = rawArgs as { shiftId: number } & ConfirmArgs;
+    const gate = await confirmedAction(cancelWorkShift, ctx, "cancel_work_shift", { shiftId: args.shiftId }, { shiftId: args.shiftId }, args, "shift", String(args.shiftId));
+    if (gate) return gate;
+    const result = await backendPost(ctx, API.ownerShiftCancel(args.shiftId));
+    auditTool(ctx, cancelWorkShift, "ok", { resourceType: "shift", resourceId: String(args.shiftId) });
+    return result;
+  },
+});
+
 export const ownerTools: KingSparkonTool[] = [
   getMyBusiness,
   getMyBusinessProfile,
@@ -572,4 +638,7 @@ export const ownerTools: KingSparkonTool[] = [
   createProduct,
   updateProduct,
   deleteProduct,
+  createWorkShift,
+  getWorkShifts,
+  cancelWorkShift,
 ];

@@ -89,20 +89,20 @@ const withdraw = defineTool({
 const getWithdrawalEligibility = defineTool({
   name: "get_withdrawal_eligibility",
   description:
-    "Check withdrawal eligibility and minimums for my rail (owner, worker tips, affiliate tips or affiliate commissions) before requesting a payout. Read-only.",
+    "Check withdrawal eligibility and minimums for my rail (artist, owner, worker tips, affiliate tips or affiliate commissions) before requesting a payout. Read-only.",
   security: {
     classification: "READ",
-    roles: ["OWNER", "WORKER", "AFFILIATE"],
+    roles: ["ARTIST", "OWNER", "WORKER", "AFFILIATE"],
     scopes: ["earnings.read"],
     confirmation: "NONE",
     financial: false,
     mandate: "NONE",
   },
   schema: {
-    rail: z.enum(["owner", "worker", "affiliate_tip", "affiliate_commission"]).describe("Which rail to check."),
+    rail: z.enum(["owner", "worker", "artist", "affiliate_tip", "affiliate_commission"]).describe("Which rail to check."),
   },
   handler: async (ctx, rawArgs) => {
-    const args = rawArgs as { rail: "owner" | "worker" | "affiliate_tip" | "affiliate_commission" };
+    const args = rawArgs as { rail: "owner" | "worker" | "artist" | "affiliate_tip" | "affiliate_commission" };
     const expectedRole = RAIL_ROLES[args.rail];
     if (!ctx.identity.roles.includes(expectedRole)) {
       throw new McpError("ROLE_NOT_ALLOWED", `The ${args.rail} rail requires the ${expectedRole} role.`);
@@ -112,9 +112,11 @@ const getWithdrawalEligibility = defineTool({
         ? API.ownerWithdrawalEligibility
         : args.rail === "worker"
           ? API.tipsWorkerWithdrawalEligibility(ctx.identity.userId)
-          : args.rail === "affiliate_tip"
-            ? API.affiliateTipWithdrawalEligibility
-            : API.affiliateWithdrawalEligibility;
+          : args.rail === "artist"
+            ? API.artistWithdrawalEligibility
+            : args.rail === "affiliate_tip"
+              ? API.affiliateTipWithdrawalEligibility
+              : API.affiliateWithdrawalEligibility;
     const eligibility = await backendGet(ctx, path);
     auditTool(ctx, getWithdrawalEligibility, "ok");
     return eligibility;
