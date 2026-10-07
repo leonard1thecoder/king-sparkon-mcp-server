@@ -28,7 +28,7 @@ export interface RequestIdentity {
   businessName: string | null;
 }
 
-const VALID_ROLES: KingSparkonRole[] = ["USER", "ARTIST", "OWNER", "WORKER", "ADMIN"];
+const VALID_ROLES: KingSparkonRole[] = ["USER", "ARTIST", "OWNER", "WORKER", "AFFILIATE", "ADMIN"];
 
 function normalizeRole(value: unknown): KingSparkonRole | null {
   if (typeof value !== "string") return null;

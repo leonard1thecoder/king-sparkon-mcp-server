@@ -11,12 +11,17 @@
  * POST /api/mcp and answers anything else with a JSON-RPC 404/405.
  */
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { errorPayload, McpError } from "./auth/errors.js";
 import { auditTool, authorizeTool } from "./tools/types.js";
 import { tools } from "./tools/registry.js";
-import { authFromHeaders, runWithRequestAuth } from "./auth/requestStore.js";
+import { authFromHeaders, backendUrl, runWithRequestAuth } from "./auth/requestStore.js";
+import { backendGet } from "./backend/client.js";
+import { API } from "./backend/endpoints.js";
+import { auditInvocation } from "./audit/log.js";
+import { permissionsForRoles, type KingSparkonRole, type ToolSecurity } from "./auth/consent.js";
+import type { McpRequestContext } from "./auth/pipeline.js";
 
 export const SERVER_NAME = "king-sparkon-mcp-server";
 export const SERVER_VERSION = "0.1.0";
@@ -67,7 +72,237 @@ export function createServer(): McpServer {
     });
   }
 
+  registerResources(server);
+  registerPrompts(server);
+
   return server;
+}
+
+/**
+ * Read-oriented MCP resources (§25). Every read re-resolves identity and
+ * consent through the same pipeline as tools; `resources/list` advertises
+ * only capability names (no data), contents stay caller-scoped.
+ */
+const RESOURCE_ROLES = ["USER", "ARTIST", "OWNER", "WORKER", "AFFILIATE", "ADMIN"] as const;
+
+function auditResource(ctx: McpRequestContext, name: string, result: "ok" | "error"): void {
+  auditInvocation({
+    userId: ctx.identity.userId,
+    agentId: ctx.agentId,
+    role: ctx.identity.roles.join(","),
+    tool: `resource:${name}`,
+    resourceType: "resource",
+    resourceId: name,
+    action: `resource:${name}`,
+    consentId: ctx.connectionId,
+    mandateId: null,
+    amount: null,
+    currency: null,
+    result,
+    requestId: ctx.requestId,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+function resourceText(uri: string, value: unknown): {
+  contents: Array<{ uri: string; mimeType: string; text: string }>;
+} {
+  return { contents: [{ uri, mimeType: "application/json", text: JSON.stringify(value) }] };
+}
+
+function registerResources(server: McpServer): void {
+  const readSecurity = (scopes: string[]): ToolSecurity => ({
+    classification: "READ",
+    roles: [...RESOURCE_ROLES] as KingSparkonRole[],
+    scopes,
+    confirmation: "NONE",
+    financial: false,
+    mandate: "NONE",
+  });
+
+  server.registerResource(
+    "current-user",
+    "king-sparkon://me",
+    { description: "Authenticated King Sparkon profile: id, username, live roles and business assignment. Never includes tokens or secrets." },
+    async (uri) => {
+      const { ctx } = await authorizeTool(readSecurity([]));
+      try {
+        const profile = await backendGet(ctx, API.usersMe);
+        auditResource(ctx, "king-sparkon://me", "ok");
+        return resourceText(uri.href, profile);
+      } catch {
+        auditResource(ctx, "king-sparkon://me", "error");
+        throw new McpError("BACKEND_ERROR", "Could not load the current user.");
+      }
+    },
+  );
+
+  server.registerResource(
+    "my-permissions",
+    "king-sparkon://me/permissions",
+    { description: "Effective MCP permissions for the caller's live roles plus granted consent scopes." },
+    async (uri) => {
+      const { ctx } = await authorizeTool(readSecurity([]));
+      auditResource(ctx, "king-sparkon://me/permissions", "ok");
+      return resourceText(uri.href, {
+        roles: ctx.identity.roles,
+        permissions: permissionsForRoles(ctx.identity.roles),
+        grantedScopes: ctx.consent?.scopes ?? [],
+      });
+    },
+  );
+
+  server.registerResource(
+    "my-consent",
+    "king-sparkon://me/consent",
+    { description: "Effective MCP consent state for this connection: scopes, expiry, revocation and role permissions." },
+    async (uri) => {
+      const { ctx } = await authorizeTool(readSecurity([]));
+      auditResource(ctx, "king-sparkon://me/consent", "ok");
+      return resourceText(uri.href, {
+        connectionId: ctx.connectionId,
+        agentId: ctx.agentId,
+        grantedScopes: ctx.consent?.scopes ?? [],
+        expiresAt: ctx.consent?.expiresAt ?? null,
+        revoked: ctx.consent?.revoked ?? false,
+        permissions: permissionsForRoles(ctx.identity.roles),
+      });
+    },
+  );
+
+  server.registerResource(
+    "event",
+    new ResourceTemplate("king-sparkon://events/{eventId}", {
+      // Public catalogue enumeration (backend endpoint is public): lets
+      // clients discover event instances. Reads by id still enforce consent.
+      list: async () => {
+        try {
+          const response = await fetch(`${backendUrl()}/api/v1/tickets/events`);
+          if (!response.ok) return { resources: [] };
+          const data: unknown = await response.json();
+          const items = (Array.isArray(data) ? data : []).slice(0, 50);
+          return {
+            resources: items.flatMap((item) => {
+              const record = item as Record<string, unknown>;
+              const id = String(record.id ?? "");
+              if (!id) return [];
+              return [
+                {
+                  uri: `king-sparkon://events/${id}`,
+                  name: String(record.name ?? `Event ${id}`),
+                  description: "Published ticket event.",
+                  mimeType: "application/json",
+                },
+              ];
+            }),
+          };
+        } catch {
+          return { resources: [] };
+        }
+      },
+    }),
+    { description: "One published ticket event with ticket classes and availability. Draft visibility is enforced by the backend." },
+    async (uri, variables) => {
+      const eventId = String((variables as Record<string, string>).eventId ?? "");
+      if (!eventId) throw new McpError("BUSINESS_RULE_VIOLATION", "An eventId is required.");
+      const { ctx } = await authorizeTool(readSecurity(["events.read"]));
+      try {
+        const event = await backendGet(ctx, API.ticketEvent(eventId));
+        auditResource(ctx, "king-sparkon://events/{eventId}", "ok");
+        return resourceText(uri.href, event);
+      } catch {
+        auditResource(ctx, "king-sparkon://events/{eventId}", "error");
+        throw new McpError("EVENT_NOT_FOUND", "Ticket event not found.");
+      }
+    },
+  );
+
+  server.registerResource(
+    "wallet",
+    "king-sparkon://wallet",
+    { description: "Caller-owned KSC wallet: available, reserved and total balances. Never combined with ZAR earnings." },
+    async (uri) => {
+      const { ctx } = await authorizeTool(readSecurity(["wallet.read"]));
+      try {
+        const wallet = await backendGet(ctx, API.kscWallet);
+        auditResource(ctx, "king-sparkon://wallet", "ok");
+        return resourceText(uri.href, wallet);
+      } catch {
+        auditResource(ctx, "king-sparkon://wallet", "error");
+        throw new McpError("BACKEND_ERROR", "Could not load the KSC wallet.");
+      }
+    },
+  );
+}
+
+/**
+ * Workflow prompts (§26). Static guidance only — they describe safe tool
+ * sequences and never bypass authorization, consent or confirmation.
+ */
+function registerPrompts(server: McpServer): void {
+  const message = (text: string) => ({
+    messages: [{ role: "user" as const, content: { type: "text" as const, text } }],
+  });
+
+  server.registerPrompt(
+    "event_management",
+    { description: "Guide an owner through the ticket-event lifecycle: draft, sets, publish, bookings, cancel." },
+    async () => message(
+      [
+        "Owner event lifecycle. Always start with get_my_role to confirm the OWNER role, then:",
+        "1. get_my_events to see existing ticket and drafted events.",
+        "2. create_event (draft) with the backend-native event shape; confirm when asked.",
+        "3. create_event_set per performance slot with ISO-8601 startTime/endTime; backend validates overlaps.",
+        "4. Review applicants with get_event_artists; approve via book_artist (with offer) or reject via reject_artist — rejection uses the real workflow, never deletion.",
+        "5. publish_event only when sets, rider and tickets are ready; cancel_event cancels, never deletes history.",
+        "Every mutation needs owner.events consent and an explicit confirmation round. Ownership is enforced against the live backend principal.",
+      ].join("\n"),
+    ),
+  );
+
+  server.registerPrompt(
+    "artist_booking",
+    { description: "Guide an artist through applying to sets and answering booking offers." },
+    async () => message(
+      [
+        "Artist booking workflow. Confirm the ARTIST role with get_my_role, then:",
+        "1. search_events for published events; get_event_sets is owner-side, so use get_my_artist_sets for your applications and bookings.",
+        "2. Apply with accept_set (creates a PENDING application — confirmation required).",
+        "3. Track with get_my_artist_bookings; answer offers with accept_booking or reject_booking.",
+        "4. Withdraw a pending application with reject_set.",
+        "Never act on another artist's bookings; the backend scopes everything to the authenticated artist.",
+      ].join("\n"),
+    ),
+  );
+
+  server.registerPrompt(
+    "rider_selection",
+    { description: "Guide an artist through company-paid rider redemption without touching the customer cart." },
+    async () => message(
+      [
+        "Rider workflow (company-paid, never a customer checkout). Confirm the ARTIST role, then:",
+        "1. get_my_rider_entitlements to list events with rider budgets.",
+        "2. get_event_rider for budget, spent and remaining on one event.",
+        "3. select_rider_products with eventId, productId and quantity — confirmation required; the backend checks catalogue, budget and confirmed-booking status.",
+        "4. get_my_product_selections to review what was taken.",
+        "Rider items go straight to My Purchases for counter collection. No KSC moves, no cart, no checkout. Owners configure budgets with set_event_rider / update_event_rider / disable_event_rider.",
+      ].join("\n"),
+    ),
+  );
+
+  server.registerPrompt(
+    "payment_review",
+    { description: "Enforce quote-then-confirm discipline before any KSC movement." },
+    async () => message(
+      [
+        "Payment discipline. Before any purchase_ticket, purchase_product, ksc_topup, create_mandate or withdraw call:",
+        "1. Read the quote first: get_event for ticket price/availability, get_product for price/stock, get_my_ksc_wallet and get_ksc_transactions for balance, get_ksc_payment for an existing payment's state.",
+        "2. Present amount, recipient and purpose; request explicit confirmation — the server enforces the confirmation token and rejects mismatches.",
+        "3. Execute, then return the transaction reference; amounts are backend-exact KSC/ZAR, never recomputed locally.",
+        "4. Retries reuse deterministic idempotency keys, so a repeated call cannot double-charge. Refunds and cancellations go through backend review flows, never ledger primitives.",
+      ].join("\n"),
+    ),
+  );
 }
 
 interface SinkResponse {

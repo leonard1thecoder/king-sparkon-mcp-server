@@ -51,10 +51,13 @@ Repeat the call with `confirm: true` plus the echoed `confirmationToken` to exec
 
 ## Tools
 
-90+ tools across customer, KSC, artist, owner, worker, withdrawal and
-admin domains — see [docs/TOOLS.md](docs/TOOLS.md). Every tool declares
-`classification`, `roles`, `scopes`, `confirmation`, `financial` and
-`mandate` requirements.
+103 tools across customer, KSC, artist, owner, worker, affiliate, withdrawal and
+admin domains — see [docs/TOOLS.md](docs/TOOLS.md) (generated from the
+registry). Every tool declares `classification`, `roles`, `scopes`,
+`confirmation`, `financial` and `mandate` requirements. Read-only MCP resources (`king-sparkon://me`, `me/permissions`,
+`me/consent`, `events/{eventId}`, `wallet`) and workflow prompts
+(`event_management`, `artist_booking`, `rider_selection`, `payment_review`)
+are also registered; see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 Key rules enforced:
 

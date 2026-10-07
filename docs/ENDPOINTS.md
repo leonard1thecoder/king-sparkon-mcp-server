@@ -45,6 +45,16 @@ Base: `{BACKEND_URL}/api`. Auth: `Authorization: Bearer <backend OAuth token>`.
 | Refunds | `GET /api/v1/refunds/pending`, `POST /api/v1/refunds/{id}/approve\|reject`, `GET /api/v1/tuck-shop/returnable-refunds/pending`, `POST /api/v1/tuck-shop/returnable-refunds/{id}/approve\|reject` |
 | Tips | `GET /api/tips/me`, `GET /api/tips/me/ai-confirm`, `GET/POST /api/tips/withdrawals` |
 
+## Affiliate
+
+| MCP use | Method + path |
+|---|---|
+| Profile/onboarding | `GET /api/affiliates/me`, `PATCH /api/affiliates/me/onboarding` |
+| Commissions/tips | `GET /api/affiliates/me/commissions`, `POST/GET /api/affiliates/me/tips` |
+| Tip withdrawals | `GET /api/affiliates/me/tip-withdrawals/eligibility`, `GET/POST /api/affiliates/me/tip-withdrawals` |
+| Commission withdrawals | `GET /api/affiliates/me/withdrawals/eligibility`, `GET/POST /api/affiliates/me/withdrawals` |
+| Referral links | `GET/POST /api/affiliate-links`, `PATCH /api/affiliate-links/{id}`, `GET /api/affiliate-links/random` |
+
 ## Customer (any authenticated role unless noted)
 
 | MCP use | Method + path |

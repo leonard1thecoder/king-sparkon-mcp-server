@@ -107,6 +107,8 @@ export const API = {
   workerTransactionsMe: "/api/transactions/me",
   workerTipsMe: "/api/tips/me",
   workerTipsAiConfirm: "/api/tips/me/ai-confirm",
+  tipsWorkerWithdrawalEligibility: (workerId: number | string) =>
+    `/api/tips/worker/${workerId}/withdrawals/eligibility`,
   transactions: "/api/transactions",
   pendingRefunds: "/api/v1/refunds/pending",
   refundApprove: (id: number | string) => `/api/v1/refunds/${id}/approve`,
@@ -143,4 +145,17 @@ export const API = {
   adminUser: (id: number | string) => `/api/admin/users/${id}`,
   adminBusinesses: "/api/admin/businesses",
   adminBusiness: (id: number | string) => `/api/admin/businesses/${id}`,
+
+  // Affiliate
+  affiliateMe: "/api/affiliates/me",
+  affiliateOnboarding: "/api/affiliates/me/onboarding",
+  affiliateCommissions: "/api/affiliates/me/commissions",
+  affiliateTips: "/api/affiliates/me/tips",
+  affiliateTipWithdrawals: "/api/affiliates/me/tip-withdrawals",
+  affiliateTipWithdrawalEligibility: "/api/affiliates/me/tip-withdrawals/eligibility",
+  affiliateWithdrawals: "/api/affiliates/me/withdrawals",
+  affiliateWithdrawalEligibility: "/api/affiliates/me/withdrawals/eligibility",
+  affiliateLinks: "/api/affiliate-links",
+  affiliateLink: (id: number | string) => `/api/affiliate-links/${id}`,
+  affiliateLinksRandom: "/api/affiliate-links/random",
 } as const;

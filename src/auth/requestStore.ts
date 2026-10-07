@@ -58,6 +58,12 @@ export function authFromHeaders(headers: Record<string, string | string[] | unde
           expiresAt: typeof parsed.expiresAt === "string" ? parsed.expiresAt : null,
           revoked: parsed.revoked === true,
           connectionId: typeof parsed.connectionId === "string" ? parsed.connectionId : connectionId,
+          id: typeof parsed.id === "string" ? parsed.id : null,
+          userId:
+            typeof parsed.userId === "string" || typeof parsed.userId === "number" ? parsed.userId : null,
+          role: typeof parsed.role === "string" ? parsed.role : null,
+          granted: typeof parsed.granted === "boolean" ? parsed.granted : null,
+          grantedAt: typeof parsed.grantedAt === "string" ? parsed.grantedAt : null,
         };
       }
     } catch {

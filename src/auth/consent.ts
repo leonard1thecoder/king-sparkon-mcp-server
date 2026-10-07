@@ -7,7 +7,7 @@
  * agents from even attempting what their role can never do.
  */
 
-export type KingSparkonRole = "USER" | "ARTIST" | "OWNER" | "WORKER" | "ADMIN";
+export type KingSparkonRole = "USER" | "ARTIST" | "OWNER" | "WORKER" | "AFFILIATE" | "ADMIN";
 
 export type ToolClassification = "READ" | "WRITE" | "WRITE_BUSINESS" | "WRITE_FINANCIAL";
 
@@ -89,6 +89,16 @@ export const ROLE_PERMISSIONS: Record<KingSparkonRole, string[]> = {
     "orders.read",
     "payments.write",
   ],
+  AFFILIATE: [
+    "affiliate.read",
+    "affiliate.write",
+    "earnings.read",
+    "wallet.read",
+    "events.read",
+    "products.read",
+    "tickets.read",
+    "orders.read",
+  ],
   ADMIN: [
     "business.read",
     "events.read",
@@ -107,6 +117,12 @@ export interface Consent {
   expiresAt?: string | null;
   revoked?: boolean;
   connectionId?: string | null;
+  /** Optional grant metadata (§7 typed consent model). Never trusted for identity. */
+  id?: string | null;
+  userId?: string | number | null;
+  role?: string | null;
+  granted?: boolean | null;
+  grantedAt?: string | null;
 }
 
 export type ConsentCheck =
@@ -123,6 +139,9 @@ export function checkConsent(
   }
   if (consent.revoked) {
     return { ok: false, code: "CONSENT_REVOKED", message: "MCP connection consent was revoked. Reconnect to continue." };
+  }
+  if (consent.granted === false) {
+    return { ok: false, code: "CONSENT_REQUIRED", message: "MCP connection consent was not granted for this operation." };
   }
   if (consent.expiresAt) {
     const expiry = new Date(consent.expiresAt);

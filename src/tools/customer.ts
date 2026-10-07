@@ -15,7 +15,9 @@ const confirmFields = {
   confirmationToken: z.string().optional(),
 };
 
-const CUSTOMER_ROLES = ["USER", "ARTIST", "OWNER", "WORKER"] as const;
+const CUSTOMER_ROLES = ["USER", "ARTIST", "OWNER", "WORKER", "AFFILIATE"] as const;
+/** Roles allowed to move money or hold purchase history (affiliates use affiliate rails instead). */
+const PURCHASE_ROLES = ["USER", "ARTIST", "OWNER", "WORKER"] as const;
 
 const getMyProfile = defineTool({
   name: "get_my_profile",
@@ -89,8 +91,9 @@ const searchEvents = defineTool({
       if (args.date && String(record.eventDate ?? "") !== args.date) return false;
       return true;
     });
+    // Abuse protection (§28): the backend list is unpaged, so bound AI-facing results.
     auditTool(ctx, searchEvents, "ok");
-    return filtered;
+    return filtered.slice(0, 50);
   },
 });
 
@@ -184,7 +187,7 @@ const getArtist = defineTool({
 const getMyOrders = defineTool({
   name: "get_my_orders",
   description: "List my mall purchase orders and collection status.",
-  security: { classification: "READ", roles: [...CUSTOMER_ROLES], scopes: ["orders.read"], confirmation: "NONE", financial: false, mandate: "NONE" },
+  security: { classification: "READ", roles: [...PURCHASE_ROLES], scopes: ["orders.read"], confirmation: "NONE", financial: false, mandate: "NONE" },
   schema: {},
   handler: async (ctx) => {
     const orders = await backendGet(ctx, API.tuckShopMyPurchases);
@@ -196,7 +199,7 @@ const getMyOrders = defineTool({
 const getMyTickets = defineTool({
   name: "get_my_tickets",
   description: "List my QR tickets.",
-  security: { classification: "READ", roles: [...CUSTOMER_ROLES], scopes: ["tickets.read"], confirmation: "NONE", financial: false, mandate: "NONE" },
+  security: { classification: "READ", roles: [...PURCHASE_ROLES], scopes: ["tickets.read"], confirmation: "NONE", financial: false, mandate: "NONE" },
   schema: {},
   handler: async (ctx) => {
     const tickets = await backendGet(ctx, API.ticketMyTickets);
@@ -226,7 +229,7 @@ interface TicketTypeEntry {
 const purchaseTicket = defineTool({
   name: "purchase_ticket",
   description: "Buy event tickets with KSC: validates price/availability, authorizes with seller settlement, captures on confirm. Ticket issuance follows standard flows.",
-  security: { classification: "WRITE_FINANCIAL", roles: ["USER", "ARTIST", "OWNER", "WORKER"], scopes: ["tickets.purchase", "payments.write"], confirmation: "REQUIRED", financial: true, mandate: "OPTIONAL" },
+  security: { classification: "WRITE_FINANCIAL", roles: [...PURCHASE_ROLES], scopes: ["tickets.purchase", "payments.write"], confirmation: "REQUIRED", financial: true, mandate: "OPTIONAL" },
   schema: {
     eventId: z.string().min(1),
     ticketType: z.enum(["REGULAR", "VIP", "VVIP"]),
@@ -279,7 +282,7 @@ const purchaseTicket = defineTool({
 const purchaseProduct = defineTool({
   name: "purchase_product",
   description: "Buy mall products with KSC: validates price/stock, authorizes with seller settlement, captures on confirm. Collection follows standard flows.",
-  security: { classification: "WRITE_FINANCIAL", roles: ["USER", "ARTIST", "OWNER", "WORKER"], scopes: ["products.purchase", "payments.write"], confirmation: "REQUIRED", financial: true, mandate: "OPTIONAL" },
+  security: { classification: "WRITE_FINANCIAL", roles: [...PURCHASE_ROLES], scopes: ["products.purchase", "payments.write"], confirmation: "REQUIRED", financial: true, mandate: "OPTIONAL" },
   schema: {
     productId: z.number().int().positive(),
     quantity: z.number().int().min(1).max(100),
