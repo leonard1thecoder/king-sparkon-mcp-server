@@ -61,3 +61,20 @@ export function createServer(): McpServer {
 
   return server;
 }
+
+/**
+ * Default export so Vercel never fails with
+ * `Invalid export found in module "/var/task/src/server.js"` if this file
+ * is loaded as a function entrypoint/chunk. Real MCP traffic goes to
+ * `api/mcp.ts` (POST /api/mcp); this handler only explains the misroute.
+ */
+export default function handler(
+  _req: unknown,
+  res?: { status: (code: number) => { json: (body: unknown) => void } },
+): void {
+  res?.status(404).json({
+    jsonrpc: "2.0",
+    error: { code: -32000, message: "Not an MCP endpoint. POST to /api/mcp." },
+    id: null,
+  });
+}
