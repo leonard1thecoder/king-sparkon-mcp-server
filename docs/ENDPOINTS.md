@@ -38,7 +38,8 @@ backend is redeployed; until then the MCP tools fail honestly with
 | Owner withdrawals | `GET /api/transactions/withdrawals/eligibility`, `GET/POST /api/transactions/withdrawals`, `POST /api/transactions/withdrawals/paypal/onboarding` |
 | Ticket events | `GET /api/v1/tickets/events`, `POST /api/v1/tickets/events`, `PATCH /api/v1/tickets/events/{id}`, `GET /api/v1/tickets/owner/dashboard`, `GET /api/v1/tickets/owner/events`, `GET/POST /api/v1/tickets/owner/withdrawals` |
 | Event sets | `POST/GET /api/v1/tickets/events/{id}/sets`, `PATCH /api/v1/tickets/sets/{id}`, `GET /api/v1/tickets/sets/open`, `GET /api/v1/tickets/sets/{id}/applications`, `GET /api/v1/tickets/sets/{id}/bookings`, `POST /api/v1/tickets/sets/{id}/applications/{appId}/reject`, `POST /api/v1/tickets/sets/{id}/book-winner`, `POST /api/v1/tickets/sets/{id}/book-artist`, `POST /api/v1/tickets/events/{id}/complete-draft` |
-| Products | `GET/POST /api/products`, `GET/PATCH/DELETE /api/products/{id}`, `GET /api/products/barcode/{barcode}` |
+| Products | `GET/POST /api/products`, `GET/PATCH/DELETE /api/products/{id}`, `PATCH /api/products/{id}/fulfilment` (pickup/delivery/both + fee + lead time), `GET /api/products/barcode/{barcode}` |
+| Deliveries | `GET /api/v1/tuck-shop/deliveries/pending`, `POST /api/v1/tuck-shop/deliveries/{id}/dispatch`, `POST /api/v1/tuck-shop/deliveries/{id}/deliver` |
 
 ## Worker
 

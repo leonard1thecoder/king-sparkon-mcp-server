@@ -95,7 +95,11 @@ export const API = {
     `/api/v1/tuck-shop/workers/online-purchases/${transactionId}/products/${productId}/barcodes`,
   products: "/api/products",
   product: (id: number | string) => `/api/products/${id}`,
+  productFulfilment: (id: number | string) => `/api/products/${id}/fulfilment`,
   productByBarcode: (barcode: string) => `/api/products/barcode/${encodeURIComponent(barcode)}`,
+  deliveriesPending: "/api/v1/tuck-shop/deliveries/pending",
+  deliveryDispatch: (transactionId: number | string) => `/api/v1/tuck-shop/deliveries/${transactionId}/dispatch`,
+  deliveryDeliver: (transactionId: number | string) => `/api/v1/tuck-shop/deliveries/${transactionId}/deliver`,
 
   // Worker
   workerDashboard: "/api/worker/dashboard",

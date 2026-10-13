@@ -322,36 +322,54 @@ const purchaseTicket = defineTool({
 
 const purchaseProduct = defineTool({
   name: "purchase_product",
-  description: "Buy mall products with KSC: validates price/stock, authorizes with seller settlement, captures on confirm. Collection follows standard flows.",
+  description: "Buy mall products with KSC: validates price/stock/fulfilment, authorizes with seller settlement, captures on confirm. Delivery adds the per-unit fee; collection follows standard flows.",
   security: { classification: "WRITE_FINANCIAL", roles: [...PURCHASE_ROLES], scopes: ["products.purchase", "payments.write"], confirmation: "REQUIRED", financial: true, mandate: "OPTIONAL" },
   schema: {
     productId: z.number().int().positive(),
     quantity: z.number().int().min(1).max(100),
     sellerUsername: z.string().min(1).max(120).describe("Merchant username receiving settlement (validated server-side)."),
+    fulfilment: z.enum(["PICKUP", "DELIVERY"]).optional().describe("Line fulfilment (default PICKUP). DELIVERY needs a deliveryAddress."),
+    deliveryAddress: z.string().max(1024).optional().describe("Required when fulfilment is DELIVERY; the order becomes a red delivery order."),
     mandateId: z.number().int().positive().optional(),
     ...confirmFields,
   },
   handler: async (ctx, rawArgs) => {
     const args = rawArgs as {
       productId: number; quantity: number; sellerUsername: string; mandateId?: number;
+      fulfilment?: "PICKUP" | "DELIVERY"; deliveryAddress?: string;
       confirm?: boolean; confirmationToken?: string;
     };
     const product = (await backendGet(ctx, API.tuckShopProduct(args.productId))) as {
       name: string; price: number; salePrice?: number; stockQuantity: number; businessName?: string;
+      pickupEnabled?: boolean; deliveryEnabled?: boolean; deliveryFee?: number; deliveryLeadTimeMinutes?: number;
     };
     if (Number(product.stockQuantity ?? 0) < args.quantity) {
       auditTool(ctx, purchaseProduct, "error");
       throw new McpError("PRODUCT_OUT_OF_STOCK", `Only ${product.stockQuantity} units of ${product.name} in stock.`);
+    }
+    const fulfilment = args.fulfilment ?? "PICKUP";
+    if (fulfilment === "DELIVERY" && !(product.deliveryEnabled ?? false)) {
+      auditTool(ctx, purchaseProduct, "error");
+      throw new McpError("BUSINESS_RULE_VIOLATION", `Product ${product.name} does not offer delivery.`);
+    }
+    if (fulfilment === "PICKUP" && (product.pickupEnabled ?? true) === false) {
+      auditTool(ctx, purchaseProduct, "error");
+      throw new McpError("BUSINESS_RULE_VIOLATION", `Product ${product.name} is delivery only.`);
+    }
+    if (fulfilment === "DELIVERY" && !args.deliveryAddress?.trim()) {
+      auditTool(ctx, purchaseProduct, "error");
+      throw new McpError("BUSINESS_RULE_VIOLATION", "Delivery address is required when fulfilment is DELIVERY.");
     }
     const unitPrice = Number(product.salePrice ?? product.price);
     if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
       auditTool(ctx, purchaseProduct, "error");
       throw new McpError("PRODUCT_NOT_FOUND", `Product ${product.name} has no valid price.`);
     }
-    const amountKsc = unitPrice * args.quantity;
+    const deliveryFee = fulfilment === "DELIVERY" ? Number(product.deliveryFee ?? 0) * args.quantity : 0;
+    const amountKsc = unitPrice * args.quantity + deliveryFee;
     return kscPurchaseFlow(purchaseProduct, ctx, {
       amountKsc,
-      description: `${args.quantity} x ${product.name}`,
+      description: `${args.quantity} x ${product.name}${fulfilment === "DELIVERY" ? ` (delivery to ${args.deliveryAddress?.trim()})` : ""}`,
       tool: "product.purchase",
       merchantId: "mall",
       sellerUsername: args.sellerUsername,
@@ -359,7 +377,15 @@ const purchaseProduct = defineTool({
       subjectReference: String(args.productId),
       confirm: args.confirm,
       confirmationToken: args.confirmationToken,
-      summary: { product: product.name, quantity: args.quantity, unitPriceKsc: unitPrice, business: product.businessName ?? null },
+      summary: {
+        product: product.name,
+        quantity: args.quantity,
+        unitPriceKsc: unitPrice,
+        fulfilment,
+        deliveryFeeKsc: deliveryFee,
+        deliveryEtaMinutes: fulfilment === "DELIVERY" ? (product.deliveryLeadTimeMinutes ?? null) : null,
+        business: product.businessName ?? null,
+      },
     });
   },
 });

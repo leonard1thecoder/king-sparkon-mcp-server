@@ -10,6 +10,7 @@ import { API } from "../backend/endpoints.js";
 import { McpError } from "../auth/errors.js";
 import { assertSameBusiness, fetchBusinessId, requireConfirmation } from "../auth/pipeline.js";
 import { auditTool, defineTool, type KingSparkonTool } from "./types.js";
+import { buildDeliveryTools } from "./delivery.js";
 import { searchArtistDirectory, type ArtistDirectoryQuery } from "./customer.js";
 
 const confirmFields = {
@@ -638,6 +639,15 @@ export const ownerTools: KingSparkonTool[] = [
   createProduct,
   updateProduct,
   deleteProduct,
+  ...buildDeliveryTools({
+    listName: "get_owner_deliveries",
+    dispatchName: "dispatch_owner_delivery",
+    deliverName: "complete_owner_delivery",
+    roles: ["OWNER"],
+    listScopes: ["orders.read"],
+    writeScopes: ["products.write"],
+    blurb: "Owner view.",
+  }),
   createWorkShift,
   getWorkShifts,
   cancelWorkShift,

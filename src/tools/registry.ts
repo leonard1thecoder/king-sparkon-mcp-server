@@ -8,8 +8,6 @@ import { artistTools } from "./artist.js";
 import { customerTools } from "./customer.js";
 import { kscTools } from "./ksc.js";
 import { notificationTools } from "./notifications.js";
-import { customerTools } from "./customer.js";
-import { kscTools } from "./ksc.js";
 import { ownerTools } from "./owner.js";
 import { withdrawTools } from "./withdraw.js";
 import { workerTools } from "./worker.js";

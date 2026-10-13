@@ -11,6 +11,7 @@ import { API } from "../backend/endpoints.js";
 import { McpError } from "../auth/errors.js";
 import { requireConfirmation } from "../auth/pipeline.js";
 import { auditTool, defineTool, type KingSparkonTool } from "./types.js";
+import { buildDeliveryTools } from "./delivery.js";
 
 const confirmFields = {
   confirm: z.boolean().optional(),
@@ -373,6 +374,15 @@ export const workerTools: KingSparkonTool[] = [
   getMySchedule,
   getMyEventsWorker,
   getMyTasks,
+  ...buildDeliveryTools({
+    listName: "get_delivery_queue",
+    dispatchName: "dispatch_delivery",
+    deliverName: "complete_delivery",
+    roles: ["WORKER"],
+    listScopes: ["assignments.read"],
+    writeScopes: ["assignments.write"],
+    blurb: "Worker view.",
+  }),
   acceptAssignment,
   declineAssignment,
   completeAssignment,
